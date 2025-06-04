@@ -33,11 +33,17 @@ class AzureOpenAIService(BaseService):
         str,
         "The deployment name for the Azure OpenAI model."
     ] = None
-
-    def image_to_base64(self, image: PIL.Image.Image):
-        image_bytes = BytesIO()
-        image.save(image_bytes, format="WEBP")
-        return base64.b64encode(image_bytes.getvalue()).decode("utf-8")
+    
+    def image_to_base64(self, image: PIL.Image.Image, format: str = "JPEG"):
+        """Convert PIL image to base64. JPEG is more universally supported."""
+        # Convert RGBA to RGB for JPEG compatibility
+        if image.mode in ('RGBA', 'LA', 'P'):
+            image = image.convert('RGB')
+        
+        # Use context manager to ensure BytesIO is properly cleaned up
+        with BytesIO() as image_bytes:
+            image.save(image_bytes, format=format)
+            return base64.b64encode(image_bytes.getvalue()).decode("utf-8")
 
     def prepare_images(
         self, images: Union[Image.Image, List[Image.Image]]
@@ -49,9 +55,7 @@ class AzureOpenAIService(BaseService):
             {
                 "type": "image_url",
                 "image_url": {
-                    "url": "data:image/webp;base64,{}".format(
-                        self.image_to_base64(img)
-                    ),
+                    "url": f"data:image/jpeg;base64,{self.image_to_base64(img)}",
                 }
             }
             for img in images
